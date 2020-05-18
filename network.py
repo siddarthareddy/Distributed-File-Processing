@@ -7,7 +7,7 @@ def send(addr,obj,replyfn=None):
         s = socket.create_connection(addr)
         break
     b = pickle.dumps(obj)
-    msg = b # no len prepended, just send the damn thing
+    msg = b
     s.sendall(msg)
 
 def worker(ADDR,f):

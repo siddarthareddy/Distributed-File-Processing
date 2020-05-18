@@ -14,7 +14,6 @@ def main():
         size = d['size']
         Map(ME,filename,offset,size)
         return b'Done!'
-
     network.worker(MY_ADDR,parser)
 
 def Map(mapid,filename,offset,size):

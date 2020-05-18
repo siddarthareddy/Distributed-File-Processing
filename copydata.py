@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import sys, time, queue, threading, json, pickle
 from collections import Counter
 import PaxosNode
@@ -9,22 +7,18 @@ q = queue.Queue()
 
 def main():
     myAddr      =  (sys.argv[1], int(sys.argv[2]))
-    otherAddrs  = [(sys.argv[i],int(sys.argv[i+1])) for i in range(3,len(sys.argv),2)] # allow any number of other PRMs.
-
+    otherAddrs  = [(sys.argv[i],int(sys.argv[i+1])) for i in range(3,len(sys.argv),2)]
     p = PaxosReplicator(myAddr,otherAddrs)
     def parser(b):
         q.put(pickle.loads(b))
         return b'Enqueued msg!'
-
     threading.Thread(target=network.worker, daemon=True, args=[myAddr,parser]).start()
-
     p.run()
 
 class LogValue(object):
     def __init__(self,filename,wordcounts):
         self.filename = filename
         self.wordcounts = wordcounts
-
     def __str__(self):
         # Summarize the string if it's too long.
         x = sorted(self.wordcounts.items())
@@ -33,12 +27,10 @@ class LogValue(object):
         else:
             c = x
         return '<Logvalue: {}, counts={} >'.format(self.filename,c)
-
     def __eq__(self,other):
         return isinstance(other, type(self)) \
                 and self.filename==other.filename \
                 and self.wordcounts==other.wordcounts
-
     def __hash__(self):
         return hash((self.filename,tuple(sorted(self.wordcounts.items()))))
 
@@ -46,7 +38,6 @@ class PaxosReplicator(object):
 
     def __init__(self,myAddr,otherAddrs):
         self.running = True
-
         self.myAddr = myAddr
         self.otherAddrs = otherAddrs
         self.num_elems = 3 # there are 3 entries in our multi-paxos log.
@@ -59,7 +50,6 @@ class PaxosReplicator(object):
                          )
             self.paxosNodes.append(p)
 
-
     def get_log(self):
         return [p.v for p in self.paxosNodes]
 
@@ -68,7 +58,6 @@ class PaxosReplicator(object):
             d = q.get()
             if 'cmd' in d and d['cmd']=='k': break
             self.rx(d)
-
 
     def rx(self,d):
         if 'cmd' in d:
@@ -83,8 +72,6 @@ class PaxosReplicator(object):
                 self.total(d['logpositions'])
             elif cmd=='print':
                 self.print()
-            elif cmd=='merge':
-                self.merge(d['logpositions'])
             else:
                 print('No command named "{}" exists'.format(cmd))
         elif 'paxos' in d:
@@ -137,7 +124,6 @@ class PaxosReplicator(object):
             
         print("My local log is currently:")
         self.print()
-        
 
     def stop(self):
         #stopping a node      
@@ -161,12 +147,6 @@ class PaxosReplicator(object):
         '''prints the filenames of all the log objects.'''        
         for i,logval in enumerate(self.get_log()):
             print("\nLOG ENTRY {}: {}".format(i,logval))
-
-    def merge(self,logpositions):
-        c = Counter()
-        log = self.get_log()
-        [ c.update(log[p].wordcounts) for p in logpositions if p < len(log) and log[p] is not None ]
-        print([(k,v) for k,v in sorted(c.items())])
 
 if __name__ == '__main__':
     main()

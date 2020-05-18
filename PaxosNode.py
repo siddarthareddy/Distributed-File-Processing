@@ -1,9 +1,5 @@
-#!/usr/bin/env python3
 from collections import Counter
 import time
-
-# Implement Paxos.
-
 from functools import total_ordering
 
 @total_ordering
@@ -11,48 +7,35 @@ class Num(object):
     def __init__(self,ctr=None,pid=None):
         self.c  = ctr if ctr is not None else 0
         self.id = pid if pid is not None else 0
-
     def __lt__(self, other):
         if not isinstance(other, type(self)): return NotImplemented
         return (self.c < other.c) or (self.c == other.c and self.id < other.id)
-
     def __eq__(self, other):
         if not isinstance(other, type(self)): return NotImplemented
         return (self.c == other.c) and (self.id == other.id)
-
     def __str__(self):
         return '<Num ctr={} , pid={}>'.format(self.c,self.id)
-
     def __hash__(self):
         return hash((self.c,self.id))
-
     def __add__(self,n):
         return Num(self.c + n, self.id)
 
-
 # A Proposal is just a Num and a proposed value. 
-
 @total_ordering
 class Proposal(object):
     def __init__(self,n=None,v=None):
         self.n = n if n is not None else Num()
-        self.v = v if v is not None else None  # can't be 'BLANK VALUE' because want just-awoken folks to be able to get up-to-date by proposing 'None' and we require that non-consensus nodes reply with None to communicate that they haven't reached consensus.
-
+        self.v = v if v is not None else None 
     def __lt__(self, other):
         if not isinstance(other, type(self)): return NotImplemented
         return self.n < other.n
-
     def __eq__(self, other):
         if not isinstance(other, type(self)): return NotImplemented
         return self.n == other.n
-
     def __str__(self):
         return '<Proposal n={} , v={}>'.format(self.n,self.v)
-
     def __hash__(self):
         return hash((self.n,self.v))
-
-#############################################################
 
 class PaxosNode(object):
     """docstring for PaxosNode"""
@@ -76,14 +59,6 @@ class PaxosNode(object):
         self.L_accepted_values = {}
         self.v = None
 
-    def __str__(self):
-        return '\n   <PaxosNode id={} VALUE = {} max-resp-prepreq={} max-acc-prop={} >\n'.format(
-                self.id,
-                self.v,
-                self.highest_responded_prepreq,
-                self.highest_accepted_proposal
-                )
-
     def initiate_paxos(self,v):
         self.P_propose(v)
 
@@ -98,22 +73,12 @@ class PaxosNode(object):
         elif t == 'decision':
             self.L_rx_decision(d)
 
-    ###########################################
-    # Proposer methods:
-
     def P_propose(self,v):
         self.vdefault = v
         n = self.highest_responded_prepreq + 1
         self.prepare_responses[n] = {}
-
         for to in self.P_acceptors:
-            debug('P{}: proposing n={} to A={}'.format(self.id, n, to))
-            d = {
-                'from': self.id,
-                'to': to,
-                'type': 'prepare request',
-                'n':n
-                }
+            d = {'from': self.id,'to': to,'type': 'prepare request','n':n}
             if to == self.id:
                 self.A_rx_prepare_request(d)
             else:
@@ -122,50 +87,31 @@ class PaxosNode(object):
     def P_rx_prepare_response(self,d):
         # Phase 2a. If the proposer receives a response to its prepare requests 
         n = d['n'] 
-        if n not in self.prepare_responses:
-            print("!!!!!!!!!P{}: Shouldn't happen: Somehow I rxd a repsonse to a prepare-request with an n I didn't send: {}".format(self.id,d))
-
         self.prepare_responses[n][d['from']] = d  # for this n, remember who voted for what.
-
         if len(self.prepare_responses[n]) > self.MAJORITY:  # if we get a majority response for this n, good.
-
             proposals = [r['p'] for r in self.prepare_responses[n].values() if not (r['p'] is None or (r['p'] is not None and r['p'].v is None))]
             if len(proposals) > 0:
                 highest_numbered_proposal = max(proposals)
                 v = highest_numbered_proposal.v
             else:
                 v = self.vdefault
-
             p = Proposal(n,v)
-
             for to in self.prepare_responses[n].keys():  # to each Acceptor I've heard from
-                r = {
-                    'from': self.id,
-                    'to': to,
-                    'type': 'accept request',
-                    'p': p
-                    }
+                r = {'from': self.id,'to': to,
+                    'type': 'accept request','p': p}
                 if to == self.id:  # my own self-vote
                     self.A_rx_accept_request(r)
                 else:
-
                     self.send(r)
 
-    ###########################################
     # Acceptor methods:
-
     def A_rx_prepare_request(self,d):
-
         # Phase 1b. If an acceptor receives a prepare request with number n 
         d['n'] > self.highest_accepted_proposal
         self.highest_responded_prepreq = d['n']
-        r = {
-                'from': self.id,
-                'to': d['from'],
-                'type': 'prepare response',
-                'p': self.highest_accepted_proposal,
-                'n': d['n']
-            }
+        r = {'from': self.id,'to': d['from'],
+            'type': 'prepare response',
+            'p': self.highest_accepted_proposal,'n': d['n']}
         if r['to'] == self.id:
             # Just call it directly instead of going over the network.
             self.P_rx_prepare_response(r)
@@ -176,15 +122,11 @@ class PaxosNode(object):
         # Phase 2b. If an acceptor receives an accept request
         if self.highest_responded_prepreq <= d['p'].n:
             self.highest_accepted_proposal = d['p'] # accept the proposal
-
             # Phase 3. (Learning a Chosen Value)
             for l in self.A_learners:
-                r = {
-                    'from': self.id,
-                    'to': l,
+                r = {'from': self.id,'to': l,
                     'type': 'decision',
-                    'p': self.highest_accepted_proposal
-                    }
+                    'p': self.highest_accepted_proposal}
                 if r['to'] == self.id:
                     self.L_rx_decision(r)
                 else:
@@ -195,7 +137,5 @@ class PaxosNode(object):
         # Phase 3. (Learning a Chosen Value)
         self.L_accepted_values[d['from']] = d['p'].v
         # If a majority of Acceptors agree, set our value.
-
         if len(self.L_accepted_values) == 0: return
-
         v,c = Counter(self.L_accepted_values.values()).most_common(1)[0]
