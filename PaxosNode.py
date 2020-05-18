@@ -8,17 +8,9 @@ class Num(object):
         self.c  = ctr if ctr is not None else 0
         self.id = pid if pid is not None else 0
     def __lt__(self, other):
-        if not isinstance(other, type(self)): return NotImplemented
         return (self.c < other.c) or (self.c == other.c and self.id < other.id)
     def __eq__(self, other):
-        if not isinstance(other, type(self)): return NotImplemented
         return (self.c == other.c) and (self.id == other.id)
-    def __str__(self):
-        return '<Num ctr={} , pid={}>'.format(self.c,self.id)
-    def __hash__(self):
-        return hash((self.c,self.id))
-    def __add__(self,n):
-        return Num(self.c + n, self.id)
 
 # A Proposal is just a Num and a proposed value. 
 @total_ordering
@@ -27,34 +19,24 @@ class Proposal(object):
         self.n = n if n is not None else Num()
         self.v = v if v is not None else None 
     def __lt__(self, other):
-        if not isinstance(other, type(self)): return NotImplemented
         return self.n < other.n
     def __eq__(self, other):
-        if not isinstance(other, type(self)): return NotImplemented
         return self.n == other.n
-    def __str__(self):
-        return '<Proposal n={} , v={}>'.format(self.n,self.v)
-    def __hash__(self):
-        return hash((self.n,self.v))
 
 class PaxosNode(object):
     """docstring for PaxosNode"""
     def __init__(self, nodeid, otherAddrs, sendfn):
         self.send = sendfn
-
         # Proposer
         self.vdefault = None 
         self.id = nodeid
         self.P_acceptors = [self.id] + otherAddrs
-        # must rx > this many responses to my 'prepare reqs' from A's to have buy-in from majority of A's:
-        self.MAJORITY = (0+len(self.P_acceptors))/2.0  # (of acceptors) WARNING: assumes self is already in the list of acceptors        
+        self.MAJORITY = (0+len(self.P_acceptors))/2.0     
         self.prepare_responses = {}
-
         # Acceptor
-        self.highest_accepted_proposal = None  # Warning: This must be None, not Proposal(); need to remember if an acceptor hasn't heard any proposals yet.
+        self.highest_accepted_proposal = None
         self.highest_responded_prepreq = Num(ctr=0,pid=self.id)
         self.A_learners = [self.id] + otherAddrs 
-
         # Learner
         self.L_accepted_values = {}
         self.v = None
@@ -87,8 +69,8 @@ class PaxosNode(object):
     def P_rx_prepare_response(self,d):
         # Phase 2a. If the proposer receives a response to its prepare requests 
         n = d['n'] 
-        self.prepare_responses[n][d['from']] = d  # for this n, remember who voted for what.
-        if len(self.prepare_responses[n]) > self.MAJORITY:  # if we get a majority response for this n, good.
+        self.prepare_responses[n][d['from']] = d
+        if len(self.prepare_responses[n]) > self.MAJORITY:  # if we get a majority response for this n
             proposals = [r['p'] for r in self.prepare_responses[n].values() if not (r['p'] is None or (r['p'] is not None and r['p'].v is None))]
             if len(proposals) > 0:
                 highest_numbered_proposal = max(proposals)

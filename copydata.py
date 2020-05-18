@@ -28,9 +28,7 @@ class LogValue(object):
             c = x
         return '<Logvalue: {}, counts={} >'.format(self.filename,c)
     def __eq__(self,other):
-        return isinstance(other, type(self)) \
-                and self.filename==other.filename \
-                and self.wordcounts==other.wordcounts
+        return isinstance(other, type(self)) and self.filename==other.filename and self.wordcounts==other.wordcounts
     def __hash__(self):
         return hash((self.filename,tuple(sorted(self.wordcounts.items()))))
 
@@ -85,12 +83,9 @@ class PaxosReplicator(object):
         else:
             print("I'm not running, try 'resume'")
             return
-
         if f is None:
-            # Special value for when starting back
             v = None
         else:
-            # Normal operation.
             counts = json.load(open(f,'r'))
             v = LogValue(filename=f,wordcounts=counts)  # the value we want to replicate across the other Paxos nodes
 
@@ -125,19 +120,15 @@ class PaxosReplicator(object):
         print("My local log is currently:")
         self.print()
 
-    def stop(self):
-        #stopping a node      
+    def stop(self):  
         print('Disabling paxos...')
         self.running = False
 
     def resume(self):
-        #restart node
         print('Enabling paxos...')
         self.running = True
         print('Proposing a dummy value to get uptodate')
         self.replicate(None)
-
-    # DATA QUERY CALLS
 
     def total(self,logpositions):
         log = self.get_log()
